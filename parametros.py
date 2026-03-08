@@ -12,7 +12,7 @@ delta=75.0
 
 #enfriamiento
 temp_enf= 4.0
-temp_enf= 150.0
+ua_enf= 150.0
 agua_fria_temp=2.0
 
 #FUNCION DE TRANSFERENCIA
@@ -20,7 +20,7 @@ agua_fria_temp=2.0
 UA= potencia_max/delta #UA es coeficiente de transferencia de calor 
 K=potencia_max/(UA*100) 
 tau=(masa_milk*calor_especificoMilk)/UA #
-tem_muerto = 7.0 
+tiem_muerto = 7.0 
 
 #importacion del json
 _datos=os.path.dirname(os.path.abspath(__file__))
@@ -34,9 +34,9 @@ except json.JSONDecodeError as error:
     raise ValueError(f"Error en la sintaxis {error}")
 
 def calculoPID(metodo="LTLT"):
-    kp= 1.2*tau/(K*tem_muerto)
-    ki= kp/(2.0*tem_muerto)
-    kd= kp*0.5*tem_muerto
+    kp= 1.2*tau/(K*tiem_muerto)
+    ki= kp/(2.0*tiem_muerto)
+    kd= kp*0.5*tiem_muerto
     
     if metodo == "HTST":
         kphtst=kp *1.5

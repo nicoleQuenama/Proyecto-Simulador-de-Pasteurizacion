@@ -1,7 +1,7 @@
-import numpy as np;
-import control as ctrl;
-import matplotlib.pyplot as plt;
-from parametros import K, tau, tem_muerto,temp_amb, calculoPID;
+import numpy as np
+import control as ctrl
+import matplotlib.pyplot as plt
+from parametros import K, tau, tem_muerto,temp_amb, calculoPID, pasteurizacion_metodos
 
 def planta_pasteurizacion():
     num= [K]
