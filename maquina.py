@@ -1,21 +1,24 @@
 import numpy as np
 import control as ctrl
 import matplotlib.pyplot as plt
-from parametros import K, tau, tem_muerto,temp_amb, calculoPID, pasteurizacion_metodos
+from parametros import K, tau, tiem_muerto,temp_amb, calculoPID, pasteurizacion_metodos
 
+#funcion transferencia completa
 def planta_pasteurizacion():
-    num= [K]
-    densidad=[tau, 1.0]
-    g_planta=ctrl.TransferFunction(num, densidad)
+    num= [K] #numerador
+    den=[tau, 1.0] #denominador
+    g_planta=ctrl.TransferFunction(num, den)
 
-    nupade=[-tem_muerto/2.0,1.0]
-    denpade=[tem_muerto/2.0,1.0]
-    g_retardo=ctrl.TransferFunction(nupade, denpade)
-    g= ctrl.series(g_planta, g_retardo)
+    #operacion de tiempos muertos de pade
+    nupade=[-tiem_muerto/2.0,1.0]
+    denpade=[tiem_muerto/2.0,1.0]
+    g_retardo=ctrl.TransferFunction(nupade, denpade) #aprozimacion retardo
+    g= ctrl.series(g_retardo, g_planta)
     return g
 
 #lazo abierto
 def lazo_abierto(g, pot=50.0, duracion=7200):
+    #calculo de incremento por %
     t_in= np.linspace(0, duracion, 2000)
     t_out, y = ctrl.step_response(g,t_in)
     incremento= y * pot
@@ -26,21 +29,21 @@ def lazo_abierto(g, pot=50.0, duracion=7200):
 def empaquetamiento(temp, tem_constante, fase, bacterias, tiempo, potencia):
     if temp < tem_constante * 0.99:
         estado= "calentando la leche"
-    elif temp> tem_constante *7.02:
+    elif temp> tem_constante * 1.02:
         estado="iniciando enfriamiento"
     else:
         estado= "en equilibrio"
 
     #manejo para unity
     temp_min = temp_amb
-    t_max= 135.0
+    t_max= 135.0 #rango temp
     
-    calor=(temp-temp_min)/(t_max-temp_min)
+    calor=(temp-temp_min)/(t_max-temp_min) #normalizacion para unity
     calor = max(0.0,min(1.0,calor))
 
     #margen que falta para llegar a la temp
     temp_margen= tem_constante - temp
-    bacterias_aceptadas= bacterias>=99.99
+    bacterias_aceptadas= bacterias>=99.99 #bacterias estan aceptadas o rechazadas
 
     datos={
         "temperatura_actual":round(temp,2),

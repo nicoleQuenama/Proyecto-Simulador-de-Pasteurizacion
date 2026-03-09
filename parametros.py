@@ -19,12 +19,14 @@ agua_fria_temp=2.0
 #formula para sacar UA
 UA= potencia_max/delta #UA es coeficiente de transferencia de calor 
 K=potencia_max/(UA*100) 
-tau=(masa_milk*calor_especificoMilk)/UA #
-tiem_muerto = 7.0 
+tau=(masa_milk*calor_especificoMilk)/UA 
+tiem_muerto = 7.0 #tiempo de retardo 
 
 #importacion del json
 _datos=os.path.dirname(os.path.abspath(__file__))
 _datosjson= os.path.join(_datos,"pasteurizacion_metodos.json")
+
+#apertura del json, converisona  diccionario
 try:
     with open(_datosjson, "r", encoding="utf-8") as archivo:
         METODOS = json.load(archivo)
@@ -34,9 +36,10 @@ except json.JSONDecodeError as error:
     raise ValueError(f"Error en la sintaxis {error}")
 
 def calculoPID(metodo="LTLT"):
-    kp= 1.2*tau/(K*tiem_muerto)
-    ki= kp/(2.0*tiem_muerto)
-    kd= kp*0.5*tiem_muerto
+
+    kp= 1.2*tau/(K*tiem_muerto) #ganancia 
+    ki= kp/(2.0*tiem_muerto)#ganancia integral 
+    kd= kp*0.5*tiem_muerto#ganancia derivativa
     
     if metodo == "HTST":
         kphtst=kp *1.5
