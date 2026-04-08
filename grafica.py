@@ -1,116 +1,149 @@
+
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
-import numpy as np
-from controlador import SimuladorPasteurizador
-from parametros import METODOS, temp_amb
 
-METODO="LTLT"
-intervalo_tiemp=100
-dt=1.02
+from controlador import construir_animacion, SimuladorPasteurizador
+from parametros import METODOS
 
-sim= SimuladorPasteurizador()
-sim.iniciar(METODO)
-T_SETPOINT= METODOS[METODO]["temp_constante"] #temp objetivo
+# ── CONFIGURACIÓN DEL PROCESO ──────────────────────────────────────────────────
 
+# Aquí elegimos qué receta usar. Opciones: "LTLT", "HTST", "UHT"
+METODO = "LTLT"       
 
-#lista datos
-tiempos =[]
-temperaturas=[]
-potencias=[]
-bacterias=[]
+# Milisegundos entre cada actualización de la gráfica.
+# Menor número = animación más fluida, pero consume más procesador (CPU).
+INTERVALO_MS = 100    
 
-#figura
-fig,(ax1,ax2,ax3)= plt.subplots(3,1, figsize=(10,8))
-fig .suptitle(f"Simulador Pasteurizacion- Metodo {METODO}", fontsize=15, fontweight='bold')
+# dt: Paso de integración en segundos (nuestro salto en el tiempo).
+# Tip de auxiliatura: Si es muy pequeño es más preciso, pero la simulación irá lenta.
+# Para procesos ultra rápidos como UHT, usen un DT de 0.1 para no perder detalles.
+DT = 1.0
 
-    #temperatura
-ax1.set_ylabel("Temperatura oC")
-ax1.set_title("Temperatura de la leche")
-ax1.set_ylim(temp_amb-5, T_SETPOINT +15)
-ax1.axhline(y=T_SETPOINT, color='green', linestyle='--', linewidth=1.5, label=f"Setpoint {T_SETPOINT}°C")
-linea_temp,=ax1.plot([],[], color='blue', linewidth=2, label="Temperatura actual")
-ax1.legend(loc="lower right")
-ax1.grid(True,alpha=0.3)
-texto_temp=ax1.text(0.02, 0.85,'', transform=ax1.transAxes, fontsize=10, color='purple')
+# Ventana visible en el eje X según el método (en minutos).
+# Como HTST y UHT son muy rápidos, no tiene sentido ver una gráfica de 35 minutos vacía.
+VENTANA_METODO = {
+    "LTLT": 35.0,
+    "HTST": 3.0,
+    "UHT":  1.0,
+}
 
-    #potencia
-ax2.set_ylabel("Potencia ")
-ax2.set_title("Control del PID")
-ax2.set_ylim(-5,-110)
-ax2.axhline(y=100, color='red', linestyle=':', linewidth=1, alpha= 0.5, label="Maximo 100%")
-ax2.axhline(y=0, color="gray", linestyle=':', linewidth=1, alpha=0.5)
-linea_pot,=ax2.plot([],[], color='orange', linewidth=2, label="Potencia PID")
-ax2.legend(loc="upper right")
-ax2.grid(True,alpha=0.3)
-texto_pot=ax2.text(0.02, 0.85,'', transform=ax2.transAxes, fontsize=10, color='pink')
+# ── RESUMEN FINAL (CONTROL DE CALIDAD) ─────────────────────────────────────────
+
+def _mostrar_resumen(sim, ax3):
+    """
+    Función para mostrar los resultados finales cuando el lote termina.
+    Imprime en la consola y dibuja un cuadro de texto directamente en la gráfica.
+    """
+    # Sacamos toda la info del simulador usando el empaquetado que definimos.
+    estado = sim.get_Estado()
+    log10  = estado["reduccion_log10"]
+    n_ini  = estado["bacterias_iniciales"]
+    seguro = estado["seguro_fda"]
     
-    #bacterias
-ax3.set_ylabel("Bacterias Destruidas %")
-ax3.set_title("Tiempo en minutor")
-ax3.set_title("Reduccion de bacterias por Bigelow")
-ax3.set_ylim(-2,102)
-ax3.axhline(y=99.99, color='red', linestyle='--', linewidth=1.5, label=f"Objetivo de muerte bacteriana: 99.995")
-linea_bact,=ax3.plot([],[], color='#9C27B0', linewidth=2, label="Bacterias destruidas")
-ax3.legend(loc="lower right")
-ax3.grid(True,alpha=0.3)
-texto_bac=ax3.text(0.02, 0.15,'', transform=ax3.transAxes, fontsize=10, color='#9C27B0')
-texto_fase= ax3.text(0.98, 0.85, '', transform=ax3.transAxes, fontsize=11, fontweight='bold', color='darkgreen', ha='right')
+    # Veredicto basado en la norma: Si bajamos 5 órdenes de magnitud (log5), la leche es segura.
+    veredicto = "APROBADO (≥5-log FDA)" if seguro else "RECHAZADO (<5-log FDA)"
+
+    # ── Reporte en Consola ──
+    print("\n" + "=" * 50)
+    print("  RESUMEN FINAL DEL LOTE")
+    print("=" * 50)
+    print(f"  Método:                {METODO}")
+    print(f"  Bacterias iniciales:  {n_ini:.2e}")
+    print(f"  Reducción log10:      {log10:.3f}")
+    print(f"  Veredicto FDA:        {veredicto}")
+    print("=" * 50)
+
+    # ── Reporte en Gráfica (Cuadro de texto) ──
+    # Si está aprobado usamos verde, si no, un rojo de advertencia.
+    color_box   = "#2e7d32" if seguro else "#c62828"
+    color_texto = "white"
+
+    resumen = (
+        f"Lote finalizado\n"
+        f"N inicial: {n_ini:.2e}\n"
+        f"Reducción: {log10:.2f} log₁₀\n"
+        f"{veredicto}"
+    )
+
+    # Dibujamos el cuadro informativo sobre la tercera subgráfica (ax3).
+    ax3.text(
+        0.98, 0.5, resumen,
+        transform=ax3.transAxes,
+        fontsize=9,
+        verticalalignment="center",
+        horizontalalignment="right",
+        bbox=dict(
+            boxstyle="round,pad=0.5",
+            facecolor=color_box,
+            alpha=0.88,
+            edgecolor="none",
+        ),
+        color=color_texto,
+        fontweight="bold",
+        zorder=10,
+    )
+    plt.draw()
 
 
-def actualizar_grafica(frame):
-    if not sim.corriendo:
-        return linea_temp, linea_pot, linea_bact
+# ── LANZADOR PRINCIPAL ────────────────────────────────────────────────────────
 
-    sim.avanzar(dt=dt)
-    #bacterias destruidas
-    if sim.n < sim.n_base:
-        pct_bac=(1.0-sim.n/sim.n_base)*100.0
-    else:
-        pct_bac=0.0
-    
-    #nuevos valores a la lista
-    tiempos.append(sim.tiempo/60)
-    temperaturas.append(sim.temp)
-    potencias.append(sim.potencia)
-    bacterias.append(pct_bac)
+def lanzar(metodo=METODO, intervalo_ms=INTERVALO_MS, dt=DT):
+    """
+    Esta función arma la figura y arranca la animación.
+    Es como el "encendido" de nuestra máquina virtual.
+    """
+    # Buscamos cuánto tiempo debe mostrar la gráfica según el método elegido.
+    ventana = VENTANA_METODO.get(metodo, 35.0)
 
-    #actualizacion de las lineas
-    linea_temp.set_data(tiempos, temperaturas)
-    linea_pot.set_data(tiempos, potencias)
-    linea_bact.set_data(tiempos, bacterias)
+    print("=" * 50)
+    print(f"  Simulador Pasteurizador — {metodo}")
+    print(f"  Setpoint: {METODOS[metodo]['temp_constante']} °C")
+    print(f"  Tiempo de mantenimiento: {METODOS[metodo]['tiempo']} s")
+    print("=" * 50)
 
-    t_actual=tiempos[-1]
-    t_minimavisible= max(0,t_actual - 35)
-    t_maxvisible= t_actual+2
+    # Llamamos a la función del controlador que ya tiene configurados los ejes y el PID.
+    fig, ani, sim = construir_animacion(
+        metodo=metodo,
+        intervalo_ms=intervalo_ms,
+        dt=dt,
+    )
 
-    for ax in (ax1,ax2,ax3):
-        ax.set_xlim(t_minimavisible, t_maxvisible)
-    
-    #textos axtualizacion
-    texto_temp.set_text(f"Temperatua actual:{sim.temp:.1f}oC")
-    texto_pot.set_text(f"Potencia: {sim.potencia:.1f}%")
-    texto_bac.set_text(f"Bacterias destruidas: {pct_bac:.2f}%")
-    texto_fase.set_text(f"Fase: {sim.fase.upper()}")
+    # Recuperamos los ejes (ax1: Temp, ax2: Potencia, ax3: Bacterias).
+    ax1, ax2, ax3 = fig.get_axes()
 
-    #cambio color segun que fase estemos
-    colores_fase={
-        "calentando": "darkred",
-        "constante": "darkgreen",
-        "enfriando": "steelblue",
-        "completado": "purple",
-        "esperando": "gray"
-    }
-    texto_fase.set_color(colores_fase.get(sim.fase, "black"))
-    return linea_temp, linea_pot, linea_bact
+    # Ajustamos la escala inicial del eje X para que se vea ordenado desde el segundo 0.
+    for ax in (ax1, ax2, ax3):
+        ax.set_xlim(0, ventana)
+
+    # Variable tipo bandera para no imprimir el resumen muchas veces al final.
+    resumen_mostrado = {"hecho": False}
+
+    # --- GUARDIA DE SEGURIDAD ---
+    # Interceptamos la función de animación original para saber cuándo termina el proceso.
+    func_original = ani._func
+
+    def frame_con_guardia(frame):
+        resultado = func_original(frame)
+
+        # Si el simulador dejó de correr y aún no mostramos el resumen, es hora de hacerlo.
+        if not sim.corriendo and not resumen_mostrado["hecho"]:
+            resumen_mostrado["hecho"] = True
+            _mostrar_resumen(sim, ax3)
+
+        return resultado
+
+    # Reemplazamos la función de la animación por nuestra versión con "guardia".
+    ani._func = frame_con_guardia
+
+    print(f"\nBacterias iniciales detectadas: {sim.n_inicial:.2e}")
+    print("Iniciando simulación en tiempo real...\n")
+
+    plt.tight_layout()
+    plt.show()
 
 
-#inicio simulacion
-ani= animation.FuncAnimation(
-    fig,
-    actualizar_grafica, 
-    interval= intervalo_tiemp, blit=False, cache_frame_data= False
-)
+# ── PUNTO DE ENTRADA ──────────────────────────────────────────────────────────
 
-print(f"Iniciando simulacion {METODO}")
-print(f"Setpoint: {T_SETPOINT} oC")
-plt.show()
+if __name__ == "__main__":
+    # Si ejecutas este archivo directamente, se lanza la animación con los parámetros de arriba.
+    lanzar(metodo=METODO, intervalo_ms=INTERVALO_MS, dt=DT)
