@@ -1,5 +1,5 @@
 {
-    "pasteurizacion LTLT":{
+    "LTLT":{
         "descripcion": "pasteurizacion lenta, toma mas tiempo",
         "temp_constante": 63.0,
         "tiempo": 1800, 
@@ -8,7 +8,7 @@
         "z": 7.0,
         "cant_vueltas":5
     },
-    "pasteurizacion HTST":{
+    "HTST":{
         "descripcion": "pasteuizacion alta, toma menos tiempo",
         "temp_constante":72.0,
         "tiempo":15,
@@ -17,7 +17,7 @@
         "z":7.0,
         "cant_vueltas":5
     },
-    "pasteurizacion UHT":{
+    "UHT":{
         "descripcion":"pasteurizacion alta, toma muy poco tiempo",
         "temp_constante":135.0,
         "tiempo":4,

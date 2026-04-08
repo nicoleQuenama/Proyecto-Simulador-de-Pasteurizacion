@@ -1,64 +1,26 @@
 import numpy as np
 import control as ctrl
 import matplotlib.pyplot as plt
-from parametros import K, tau, tiem_muerto,temp_amb, calculoPID, pasteurizacion_metodos
+from parametros import K, tau, tiem_muerto,temp_amb, METODOS, potencia_max
 
-#funcion transferencia completa
-def planta_pasteurizacion():
-    num= [K] #numerador
-    den=[tau, 1.0] #denominador
-    g_planta=ctrl.TransferFunction(num, den)
+#simulacion de la planta de pasteurizacion
+def planta_pasteurizacion() -> ctrl.TransferFunction:
+    k_pct= K*potencia_max/100.0 #ganancia en celsius
+    g_planta= ctrl.TransferFunction([k_pct], [tau,1.0])
 
-    #operacion de tiempos muertos de pade
-    nupade=[-tiem_muerto/2.0,1.0]
-    denpade=[tiem_muerto/2.0,1.0]
-    g_retardo=ctrl.TransferFunction(nupade, denpade) #aprozimacion retardo
-    g= ctrl.series(g_retardo, g_planta)
-    return g
+    num_pade=[-tiem_muerto/2.0,1.0]
+    den_pade=[-tiem_muerto/2.0,1.0]
+    g_retardo= ctrl.TransferFunction(num_pade, den_pade)
+
+    return ctrl.series(g_retardo, g_planta)
 
 #lazo abierto
-def lazo_abierto(g, pot=50.0, duracion=7200):
+def lazo_abierto(g:ctrl.TransferFunction, pot=50.0, duracion=7200):
     #calculo de incremento por %
-    t_in= np.linspace(0, duracion, 2000)
-    t_out, y = ctrl.step_response(g,t_in)
-    incremento= y * pot
-    temp=temp_amb + incremento
-
-    return t_out, temp
-
-def empaquetamiento(temp, tem_constante, fase, bacterias, tiempo, potencia):
-    if temp < tem_constante * 0.99:
-        estado= "calentando la leche"
-    elif temp> tem_constante * 1.02:
-        estado="iniciando enfriamiento"
-    else:
-        estado= "en equilibrio"
-
-    #manejo para unity
-    temp_min = temp_amb
-    t_max= 135.0 #rango temp
-    
-    calor=(temp-temp_min)/(t_max-temp_min) #normalizacion para unity
-    calor = max(0.0,min(1.0,calor))
-
-    #margen que falta para llegar a la temp
-    temp_margen= tem_constante - temp
-    bacterias_aceptadas= bacterias>=99.99 #bacterias estan aceptadas o rechazadas
-
-    datos={
-        "temperatura_actual":round(temp,2),
-        "temperatura_constante": round(tem_constante,2),
-        "error_margen_temperatura":round(temp_margen, 2),
-        "potencia": round(potencia,1),
-        "fase": fase,
-        "estado_temperatura_animacion": estado,
-        "calor": round(calor,3),
-        "bacterias_destruidas":round(bacterias, 4),
-        "proceso_aceptado": bacterias_aceptadas,
-        "tiempo": round(tiempo,1),
-    }
-    return datos
-
+    t= np.linspace(0, duracion, 2000)
+    t_out, y = ctrl.step_response(g,t)
+    T= temp_amb + y * pot
+    return t_out, T
 
 if __name__ == "__main__":
 
@@ -84,16 +46,3 @@ if __name__ == "__main__":
     plt.savefig("verificacion_planta.png", dpi=150)
     plt.close()
     print("Gráfica guardada: verificacion_planta.png")
-
-    # Verificar preparar_datos_unity con valores de ejemplo
-    print("\nEjemplo de datos para Unity:")
-    datos = empaquetamiento(
-        temp     = 45.3,
-        tem_constante  = 63.0,
-        fase         = "calentando",
-        bacterias= 0.0,
-        tiempo       = 120.0,
-        potencia     = 78.5
-    )
-    for clave, valor in datos.items():
-        print(f"  {clave}: {valor}")
