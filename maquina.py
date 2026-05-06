@@ -24,19 +24,16 @@ def lazo_abierto(g:ctrl.TransferFunction, pot=50.0, duracion=7200):
 
 if __name__ == "__main__":
 
-    print("Construyendo modelo de la planta...")
+    print("Construyendo planta...")
     G = planta_pasteurizacion()
-    print("Función de transferencia:")
     print(G)
 
-    print("\nSimulando lazo abierto al 50% de potencia...")
-    t, T = lazo_abierto(G, pot=50.0, duracion=7200)
+    print("\nSimulando lazo abierto al 50%...")
+    t, T = lazo_abierto(G, potencia_pct=50.0, duracion=7200)
 
-    # Graficar
-    plt.figure(figsize=(10, 5))
-    plt.plot(t / 60, T, color='#FF5722', linewidth=2)
-    plt.axhline(y=63.0, color='green', linestyle='--',
-                label='Setpoint LTLT: 63°C')
+    plt.figure(figsize=(10, 4))
+    plt.plot(t / 60, T, color="#FF5722", linewidth=2)
+    plt.axhline(y=63.0, color="green", linestyle="--", label="Setpoint LTLT 63°C")
     plt.xlabel("Tiempo (minutos)")
     plt.ylabel("Temperatura (°C)")
     plt.title("Lazo abierto — 50% potencia constante, sin controlador")

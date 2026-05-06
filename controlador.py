@@ -123,7 +123,7 @@ class SimuladorPasteurizador:
 
         #control de exceso de temp
         if self.temp > temp_constante + 5.0:
-            self.error_amt=error
+            self.error_ant=error
             return 0.0
     
         self.integral += error * dt #suma de error, acumulacion 
@@ -313,11 +313,7 @@ if __name__=="__main__":
     for i, t_i in enumerate(tiempos):
         if i % 300 == 0:   # cada 300 segundos = 5 minutos
             estado = sim.get_Estado()
-            print(f"{t_i/60:>7.1f}m "
-                  f"{temperaturas[i]:>8.2f}°C "
-                  f"{potencias[i]:>9.1f}% "
-                  f"{estado['fase']:>15} "
-                  f"{bacterias[i]:>7.3f}%")
+            print(f"{t_i/60:>7.1f}m " f"{temperaturas[i]:>8.2f}°C "f"{potencias[i]:>9.1f}% "f"{estado['fase']:>15} "f"{bacterias[i]:>7.3f}%")
 
     # Gráfica de la simulación discreta
     fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(12, 10))
