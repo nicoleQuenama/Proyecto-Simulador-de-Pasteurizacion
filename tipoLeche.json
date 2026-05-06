@@ -1,0 +1,12 @@
+{
+    "leche_entera": {
+        "descripcion"     : "Leche entera estandar",
+        "densidad"        : 1.030,    
+        "calor_especifico": 3930.0  
+    },
+    "leche_descremada": {
+        "descripcion"     : "Leche descremada",
+        "densidad"        : 1.035,    
+        "calor_especifico": 3970.0  
+    }
+}

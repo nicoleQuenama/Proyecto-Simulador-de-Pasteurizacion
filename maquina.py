@@ -1,80 +1,69 @@
 import numpy as np
 import control as ctrl
 import matplotlib.pyplot as plt
-from parametros import K, tau, tiem_muerto,temp_amb, calculoPID, pasteurizacion_metodos
+from parametros import K, tau, tiempo_muerto, temp_amb, METODOS, potencia_max
 
-#funcion transferencia completa
+#simulacion 
 def planta_pasteurizacion():
-    num= [K] #numerador
-    den=[tau, 1.0] #denominador
-    g_planta=ctrl.TransferFunction(num, den)
+    K_pct = K * potencia_max / 100.0
+    num_planta = [K_pct]
+    den_planta = [tau, 1.0]
+    G_planta   = ctrl.TransferFunction(num_planta, den_planta)
+    num_pade = [-tiempo_muerto / 2.0, 1.0]   # -theta/2·s + 1
+    den_pade = [ tiempo_muerto / 2.0, 1.0]   #  theta/2·s + 1
+    G_retardo = ctrl.TransferFunction(num_pade, den_pade)
 
-    #operacion de tiempos muertos de pade
-    nupade=[-tiem_muerto/2.0,1.0]
-    denpade=[tiem_muerto/2.0,1.0]
-    g_retardo=ctrl.TransferFunction(nupade, denpade) #aprozimacion retardo
-    g= ctrl.series(g_retardo, g_planta)
-    return g
+    G = ctrl.series(G_retardo, G_planta)
+    return G
 
-#lazo abierto
-def lazo_abierto(g, pot=50.0, duracion=7200):
-    #calculo de incremento por %
-    t_in= np.linspace(0, duracion, 2000)
-    t_out, y = ctrl.step_response(g,t_in)
-    incremento= y * pot
-    temp=temp_amb + incremento
+def lazo_abierto(G, potencia_pct=50.0, duracion=7200):
+    t= np.linspace(0, duracion, 2000)
+    t_out, y = ctrl.step_response(G, t)
+    T = temp_amb + y * potencia_pct
+    return t_out, T
 
-    return t_out, temp
+#empaquetamiento para unity(quitar lo que va mandar)
+def empaquetamiento(temp, tem_constante, fase, bacterias,tiempo, potencia):
 
-def empaquetamiento(temp, tem_constante, fase, bacterias, tiempo, potencia):
-    if temp < tem_constante * 0.99:
-        estado= "calentando la leche"
-    elif temp> tem_constante * 1.02:
-        estado="iniciando enfriamiento"
+    if temp < tem_constante * 0.98:
+        estado = "calentando"
+    elif temp > tem_constante * 1.02:
+        estado = "enfriando"
     else:
-        estado= "en equilibrio"
+        estado = "constante"
+    T_min = temp_amb
+    T_max = 135.0   # temperatura maxima del sistema por UHT
+    calor = (temp - T_min) / (T_max - T_min)
+    calor = max(0.0, min(1.0, calor))
+    error = tem_constante - temp
+    aprobado = bacterias >= 99.999
 
-    #manejo para unity
-    temp_min = temp_amb
-    t_max= 135.0 #rango temp
-    
-    calor=(temp-temp_min)/(t_max-temp_min) #normalizacion para unity
-    calor = max(0.0,min(1.0,calor))
-
-    #margen que falta para llegar a la temp
-    temp_margen= tem_constante - temp
-    bacterias_aceptadas= bacterias>=99.99 #bacterias estan aceptadas o rechazadas
-
-    datos={
-        "temperatura_actual":round(temp,2),
-        "temperatura_constante": round(tem_constante,2),
-        "error_margen_temperatura":round(temp_margen, 2),
-        "potencia": round(potencia,1),
-        "fase": fase,
-        "estado_temperatura_animacion": estado,
-        "calor": round(calor,3),
-        "bacterias_destruidas":round(bacterias, 4),
-        "proceso_aceptado": bacterias_aceptadas,
-        "tiempo": round(tiempo,1),
+    datos = {
+        "temperatura_actual"   : round(temp, 2),
+        "temp_objetivo"        : round(tem_constante, 2),
+        "error_temp"           : round(error, 2),
+        "potencia"             : round(potencia, 1),
+        "fase"                 : fase,
+        "estado_animacion"     : estado,
+        "calor_normalizado"    : round(calor, 3),
+        "bacterias_destruidas" : round(bacterias, 4),
+        "proceso_aprobado"     : aprobado,
+        "tiempo"               : round(tiempo, 1),
     }
     return datos
 
-
 if __name__ == "__main__":
 
-    print("Construyendo modelo de la planta...")
+    print("Construyendo planta...")
     G = planta_pasteurizacion()
-    print("Función de transferencia:")
     print(G)
 
-    print("\nSimulando lazo abierto al 50% de potencia...")
-    t, T = lazo_abierto(G, pot=50.0, duracion=7200)
+    print("\nSimulando lazo abierto al 50%...")
+    t, T = lazo_abierto(G, potencia_pct=50.0, duracion=7200)
 
-    # Graficar
-    plt.figure(figsize=(10, 5))
-    plt.plot(t / 60, T, color='#FF5722', linewidth=2)
-    plt.axhline(y=63.0, color='green', linestyle='--',
-                label='Setpoint LTLT: 63°C')
+    plt.figure(figsize=(10, 4))
+    plt.plot(t / 60, T, color="#FF5722", linewidth=2)
+    plt.axhline(y=63.0, color="green", linestyle="--", label="Setpoint LTLT 63°C")
     plt.xlabel("Tiempo (minutos)")
     plt.ylabel("Temperatura (°C)")
     plt.title("Lazo abierto — 50% potencia constante, sin controlador")
@@ -83,17 +72,4 @@ if __name__ == "__main__":
     plt.tight_layout()
     plt.savefig("verificacion_planta.png", dpi=150)
     plt.close()
-    print("Gráfica guardada: verificacion_planta.png")
-
-    # Verificar preparar_datos_unity con valores de ejemplo
-    print("\nEjemplo de datos para Unity:")
-    datos = empaquetamiento(
-        temp     = 45.3,
-        tem_constante  = 63.0,
-        fase         = "calentando",
-        bacterias= 0.0,
-        tiempo       = 120.0,
-        potencia     = 78.5
-    )
-    for clave, valor in datos.items():
-        print(f"  {clave}: {valor}")
+    print("Grafica guardada: verificacion_planta.png")

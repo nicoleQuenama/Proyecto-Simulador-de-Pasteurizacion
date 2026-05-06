@@ -1,54 +1,64 @@
 import json
 import os
 
-#PARAMETROS
-litros= 20 
-densidad_leche= 1.030 
-masa_milk= litros * densidad_leche 
-calor_especificoMilk= 3930.0  
-potencia_max= 3000.0 
-temp_amb=25.0 
-delta=75.0 
-
-#enfriamiento
-temp_enf= 4.0
-ua_enf= 150.0
-agua_fria_temp=2.0
-
-#FUNCION DE TRANSFERENCIA
-#formula para sacar UA
-UA= potencia_max/delta #UA es coeficiente de transferencia de calor 
-K=potencia_max/(UA*100) 
-tau=(masa_milk*calor_especificoMilk)/UA 
-tiem_muerto = 7.0 #tiempo de retardo 
-
-#importacion del json
-_datos=os.path.dirname(os.path.abspath(__file__))
-_datosjson= os.path.join(_datos,"pasteurizacion_metodos.json")
-
-#apertura del json, converisona  diccionario
+#importacion de los parametros de la leche
+_carpeta   = os.path.dirname(os.path.abspath(__file__))
+_rutmet_json = os.path.join(_carpeta, "tipoLeche.json")
 try:
-    with open(_datosjson, "r", encoding="utf-8") as archivo:
+    with open(_rutmet_json, "r", encoding="utf-8") as archivo:
+        tipleche = json.load(archivo)
+except FileNotFoundError:
+    raise FileNotFoundError(f"No se encontro el archivo: {_rutmet_json}")
+except json.JSONDecodeError as e:
+    raise ValueError(f"Error en la sintaxis del JSON: {e}")
+
+leche_utilizada = "leche_entera"
+fluido  = tipleche[leche_utilizada]
+volumen_litros = 20.0
+potencia_max = 3000.0 #watts
+temp_amb = 25.0   #enfriamiento leche
+delta_t_max = 75.0
+temp_enfriamiento = 4.0
+UA_enfriamiento= 150.0
+temp_aguafria = 2.0
+inicial_n = 1e6
+densidad= fluido["densidad"]
+calor_esp   = fluido["calor_especifico"]
+masa= volumen_litros * densidad
+UA = potencia_max / delta_t_max
+K = 1.0 / UA
+tau = (masa * calor_esp) / UA
+tiempo_muerto = 7.0  #cambio de una temperatura a otra
+
+
+def calcular_PID(metodo="LTLT"):
+    Kp_base = 1.2 * tau / (K * tiempo_muerto * potencia_max)
+    Ti = 2.0 * tiempo_muerto
+    Td = 0.5 * tiempo_muerto
+    Ki_base = Kp_base / Ti
+    Kd_base = Kp_base * Td
+
+    ajustes = {
+        "LTLT": (1.0, 1.0, 1.0),
+        "HTST": (1.5, 1.2, 1.0),
+        "UHT" : (2.0, 1.5, 0.8),
+    }
+
+    fp, fi, fd = ajustes.get(metodo, (1.0, 1.0, 1.0))
+    Kp = Kp_base * fp
+    Ki = Ki_base * fi
+    Kd = Kd_base * fd
+
+    return Kp, Ki, Kd
+
+#apertura para los pasteurizadores
+_carpeta   = os.path.dirname(os.path.abspath(__file__))
+_ruta_json = os.path.join(_carpeta, "pasteurizacion_metodos.json")
+
+try:
+    with open(_ruta_json, "r", encoding="utf-8") as archivo:
         METODOS = json.load(archivo)
 except FileNotFoundError:
-    print(f"No se encontro el archivo {_datosjson}")
-except json.JSONDecodeError as error:
-    raise ValueError(f"Error en la sintaxis {error}")
-
-def calculoPID(metodo="LTLT"):
-
-    kp= 1.2*tau/(K*tiem_muerto) #ganancia 
-    ki= kp/(2.0*tiem_muerto)#ganancia integral 
-    kd= kp*0.5*tiem_muerto#ganancia derivativa
-    
-    if metodo == "HTST":
-        kphtst=kp *1.5
-        kpihtst=ki*1.2
-        return kphtst, kpihtst, kd
-    elif metodo =="UHT":
-        kpuhtt= kp*2.0
-        kpiuht=ki*1.5
-        kduht=kd*0.8
-        return kpuhtt, kpiuht, kduht
-    else:
-        return kp, ki, kd
+    raise FileNotFoundError(f"No se encontro el archivo: {_ruta_json}")
+except json.JSONDecodeError as e:
+    raise ValueError(f"Error en la sintaxis del JSON: {e}")

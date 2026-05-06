@@ -1,29 +1,29 @@
 {
-    "pasteurizacion LTLT":{
-        "descripcion": "pasteurizacion lenta, toma mas tiempo",
-        "temp_constante": 63.0,
-        "tiempo": 1800, 
+    "LTLT": {
+        "descripcion"     : "Pasteurizacion lenta, toma mas tiempo",
+        "temp_constante"  : 63.0,
+        "tiempo"          : 1800,
         "tiempo_muertebac": 1.5,
-        "temp_ref": 72.0,
-        "z": 7.0,
-        "cant_vueltas":5
+        "temp_ref"        : 72.0,
+        "z"               : 7.0,
+        "reduccion_obj"   : 5
     },
-    "pasteurizacion HTST":{
-        "descripcion": "pasteuizacion alta, toma menos tiempo",
-        "temp_constante":72.0,
-        "tiempo":15,
-        "tiempo_muertebac": 72.0,
-        "temp_ref": 72.0,
-        "z":7.0,
-        "cant_vueltas":5
-    },
-    "pasteurizacion UHT":{
-        "descripcion":"pasteurizacion alta, toma muy poco tiempo",
-        "temp_constante":135.0,
-        "tiempo":4,
+    "HTST": {
+        "descripcion"     : "Pasteurizacion alta, toma menos tiempo",
+        "temp_constante"  : 72.0,
+        "tiempo"          : 15,
         "tiempo_muertebac": 1.5,
-        "temp_ref": 72.0,
-        "z":7.0,
-        "cant_vueltas":9
+        "temp_ref"        : 72.0,
+        "z"               : 7.0,
+        "reduccion_obj"   : 5
+    },
+    "UHT": {
+        "descripcion"     : "Pasteurizacion ultra alta, toma muy poco tiempo",
+        "temp_constante"  : 135.0,
+        "tiempo"          : 4,
+        "tiempo_muertebac": 1.5,
+        "temp_ref"        : 72.0,
+        "z"               : 7.0,
+        "reduccion_obj"   : 9
     }
 }
