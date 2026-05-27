@@ -22,6 +22,27 @@ def lazo_abierto(g:ctrl.TransferFunction, pot=50.0, duracion=7200):
     T= temp_amb + y * pot
     return t_out, T
 
+def empaquetamiento(temp, tem_constante, fase, bacterias, tiempo, potencia,
+                    valor_F=0.0, energia_consumida_wh=0.0, ciclo_actual=1,
+                    fallo_total=False, motivo_fallo="", error_actual=0.0):
+    return {
+        "temperatura_actual": round(temp, 2),
+        "temp_objetivo": round(tem_constante, 2),
+        "fase": fase,
+        "bacterias_destruidas": round(bacterias, 4),
+        "tiempo": round(tiempo, 1),
+        "potencia": round(potencia, 1),
+        "proceso_aprobado": False,
+        "proceso_aceptado": False,
+        "valor_F": round(valor_F, 3),
+        "energia_consumida_wh": round(energia_consumida_wh, 2),
+        "alarmas": [],
+        "ciclo_actual": ciclo_actual,
+        "fallo_total": int(fallo_total),
+        "motivo_fallo": motivo_fallo,
+        "error_actual": round(error_actual, 2)
+    }
+
 if __name__ == "__main__":
 
     print("Construyendo planta...")
